@@ -18,21 +18,36 @@ func main() {
 		"http://127.0.0.1:7777",
 		":8080",
 		"2006-02-01 15:04:05",
+		false,
+		false,
+		false,
 	}
 
 	// override defaults with cli arguments
-	var urlOut string
-	flag.StringVar(&urlOut, "o", conf.TargetURL, "jedox source OLAP (default http://localhost:7777)")
+	var targetURL string
+	flag.StringVar(&targetURL, "o", conf.TargetURL, "Jedox OLAP")
 
-	var urlIn string
-	flag.StringVar(&urlIn, "i", conf.EntryURL, "user destination url (default :8080)")
+	var entryURL string
+	flag.StringVar(&entryURL, "i", conf.EntryURL, "xdjproxy port")
+
+	var logRequest bool
+	flag.BoolVar(&logRequest, "req", conf.LogRequest, "log http request (default false)")
+
+	var logResponse bool
+	flag.BoolVar(&logResponse, "res", conf.LogResponse, "log OLAP http response (default false)")
+
+	var enableWrite bool
+	flag.BoolVar(&enableWrite, "w", conf.EnableWrite, "enable write requests (default false)")
 
 	// parse flags
 	flag.Parse()
 
 	// put everything required into config
-	conf.TargetURL = urlOut
-	conf.EntryURL = urlIn
+	conf.TargetURL = targetURL
+	conf.EntryURL = entryURL
+	conf.LogRequest = logRequest
+	conf.LogResponse = logResponse
+	conf.EnableWrite = enableWrite
 
 	log.Printf("%#v\n", conf)
 

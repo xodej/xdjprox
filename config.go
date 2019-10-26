@@ -4,7 +4,10 @@ package main
 
 // Config is needed for configuration from json
 type Config struct {
-	TargetURL  string
-	EntryURL   string
-	TimeFormat string
+	TargetURL   string
+	EntryURL    string
+	TimeFormat  string
+	LogRequest  bool
+	LogResponse bool
+	EnableWrite bool
 }

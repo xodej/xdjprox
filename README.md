@@ -24,11 +24,33 @@ Compile with go for your desired platform and run the xdjprox binary.
 ```cli
 # running xdjprox with defaults
 ./xdjprox
+```
 
+```cli
+# -h help
+./xdjprox -h
+
+Usage of xdjprox:
+  -i string
+        xdjproxy port (default ":8080")
+  -o string
+        Jedox OLAP (default "http://127.0.0.1:7777")
+  -req
+        log http request (default false)
+  -res
+        log OLAP http response (default false)
+  -w    
+        enable write requests (default false)
+```
+
+```cli
 # running xdjprox overriding defaults
-# -o <OLAP address>
-# -i <PROXY address>
-./xdjprox -o http://127.0.0.1:7777 -i :8080
+# -i   <PROXY port>
+# -o   <OLAP address>
+# -req log request
+# -res log response
+# -w   enable OLAP writes
+./xdjprox -i :8080 -o http://olap.example.org:7777 -req -res -w
 ```
 
 ## Documentation

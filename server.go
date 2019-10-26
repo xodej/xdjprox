@@ -3,12 +3,15 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"html"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strconv"
 	"time"
 )
 
@@ -25,19 +28,80 @@ func (s *Server) blockRequestHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusBadRequest)
 	_, err := fmt.Fprintf(w, "%s", `1009;"not authorized for operation";"`+html.EscapeString(r.URL.Path)+` (blocked by xdjproxy)";`)
 	if err != nil {
-		log.Fatalf("unable to send block message to client\n")
+		log.Printf("failed to send block message to client\n")
+		return
 	}
+}
+
+func (s *Server) logResponse(r *http.Response) (err error) {
+	b, erro := ioutil.ReadAll(r.Body)
+	if erro != nil {
+		log.Printf("failed to log OLAP response\n")
+		return
+	}
+
+	erro = r.Body.Close()
+	if erro != nil {
+		log.Printf("failed to close http response\n")
+		return
+	}
+
+	// log response body
+	log.Printf("%s\n", string(b))
+
+	body := ioutil.NopCloser(bytes.NewReader(b))
+	r.Body = body
+	r.ContentLength = int64(len(b))
+	r.Header.Set("Content-Length", strconv.Itoa(len(b)))
+
+	return nil
+}
+
+func (s *Server) logRequest(r *http.Request) {
+	if r.Method == "GET" {
+		log.Printf("%s\n", r.URL.String())
+		return
+	}
+
+	buf, erro := ioutil.ReadAll(r.Body)
+	if erro != nil {
+		log.Printf("failed to log request\n")
+		return
+	}
+
+	readerShow := ioutil.NopCloser(bytes.NewBuffer(buf))
+	readerKeep := ioutil.NopCloser(bytes.NewBuffer(buf))
+	log.Printf("%q\n", readerShow)
+	r.Body = readerKeep
 }
 
 func (s *Server) forwardRequestHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("forwarded request %s for session %s\n", r.URL.Path, r.URL.Query().Get("sid"))
 
+	// add headers to response
 	w.Header().Add("Connection", "Keep-Alive")
 	w.Header().Add("Keep-Alive", "timeout=5, max=100")
 
-	myurl, _ := url.Parse(s.config.TargetURL)
-	proxy := httputil.NewSingleHostReverseProxy(myurl)
+	// add headers to request
+	r.Header.Set("Accept-Charset", "utf-8")
+	r.Header.Set("Content-Type", "text/plain")
+
+	// if logging is disabled add gzip compression header to request
+	if !s.config.LogResponse {
+		r.Header.Set("Accept-Encoding", "gzip,deflate")
+	}
+
+	if s.config.LogRequest {
+		s.logRequest(r)
+	}
+
+	myURL, _ := url.Parse(s.config.TargetURL)
+
+	proxy := httputil.NewSingleHostReverseProxy(myURL)
 	proxy.FlushInterval = time.Millisecond * -1
+	if s.config.LogResponse {
+		proxy.ModifyResponse = s.logResponse
+	}
 	proxy.ServeHTTP(w, r)
 }
 
@@ -89,6 +153,12 @@ func (s *Server) Register() {
 	s.router.HandleFunc("/api", s.forwardRequestHandler)
 	s.router.HandleFunc("/inc/", s.forwardRequestHandler)
 	s.router.HandleFunc("/favicon.ico", s.forwardRequestHandler)
+
+	// if writing is enabled pass everything to OLAP
+	if s.config.EnableWrite {
+		s.router.HandleFunc("/", s.forwardRequestHandler)
+		return
+	}
 
 	// block all requests not in whitelist
 	// potentially harmful to server integrity
