@@ -32,7 +32,7 @@ Compile with go for your desired platform and run the xdjprox binary.
 
 Usage of xdjprox:
   -i string
-        xdjproxy port (default ":8080")
+        xdjprox port (default ":8080")
   -o string
         Jedox OLAP (default "http://127.0.0.1:7777")
   -req
